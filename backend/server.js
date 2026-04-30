@@ -1,38 +1,46 @@
+// ✅ Check if file is running
 console.log("SERVER FILE IS RUNNING 🚀");
 
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("dotenv").config(); // load .env file
+require("dotenv").config(); // load .env
 
 const app = express();
 
-// middleware
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
+// ✅ Check MongoDB URI
 if (!process.env.MONGO_URI) {
   console.error("❌ MONGO_URI is missing. Check backend/.env");
   process.exit(1);
 }
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
+// ✅ Connect MongoDB
+const startServer = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB Connected Successfully");
-  })
-  .catch((err) => {
+
+    app.listen(5000, () => {
+      console.log("🚀 Server running on port 5000");
+    });
+  } catch (err) {
     console.log("❌ MongoDB Connection Failed");
     console.log(err.message);
-  });
+    process.exit(1);
+  }
+};
 
-// test route
-app.get("/", (req, res) => {
-  res.send("API Running 🚀");
-});
+startServer();
 
-// example Todo schema (you will need this for your project)
-const todoSchema = new mongoose.Schema({
+
+// =========================
+// 📦 TASK MODEL (Schema)
+// =========================
+const taskSchema = new mongoose.Schema({
   text: String,
   completed: {
     type: Boolean,
@@ -40,30 +48,66 @@ const todoSchema = new mongoose.Schema({
   }
 });
 
-const Todo = mongoose.model("Todo", todoSchema);
+const Task = mongoose.model("Task", taskSchema);
 
-// CREATE todo
-app.post("/todos", async (req, res) => {
+
+// =========================
+// 🚀 ROUTES
+// =========================
+
+// 🧪 Test route
+app.get("/", (req, res) => {
+  res.send("API Running 🚀");
+});
+
+// ➕ CREATE task
+app.post("/tasks", async (req, res) => {
   try {
-    const todo = new Todo(req.body);
-    await todo.save();
-    res.json(todo);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const newTask = new Task({
+      text: req.body.text,
+      completed: false
+    });
+
+    await newTask.save();
+
+    res.json(newTask);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// GET todos
-app.get("/todos", async (req, res) => {
+// 📋 GET all tasks
+app.get("/tasks", async (req, res) => {
   try {
-    const todos = await Todo.find();
-    res.json(todos);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const tasks = await Task.find();
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// start server
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+// ❌ DELETE task
+app.delete("/tasks/:id", async (req, res) => {
+  try {
+    await Task.findByIdAndDelete(req.params.id);
+    res.json({ message: "Task deleted" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
+// ✔️ UPDATE (toggle complete)
+app.put("/tasks/:id", async (req, res) => {
+  try {
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { completed: req.body.completed },
+      { new: true }
+    );
+
+    res.json(updatedTask);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
